@@ -87,6 +87,7 @@ view model =
             [ d (commandsToPath model.program)
             , stroke "black"
             , strokeWidth "3px"
+            , fill "none"
             ]
             []
         ]
@@ -94,7 +95,33 @@ view model =
 
 commandsToPath : List Command -> String
 commandsToPath commands =
-    "M0 0 l10 20"
+    let
+        result =
+            List.foldl
+                (\c state ->
+                    case c of
+                        Forward d ->
+                            { state | output = state.output ++ "l" ++ getVector state.angle d ++ " " }
+
+                        Turn a ->
+                            { state | angle = state.angle + a }
+                )
+                { output = "M0 0 ", angle = -90 }
+                commands
+    in
+        result.output
+
+
+getVector : Float -> Float -> String
+getVector angle distance =
+    let
+        x =
+            distance * cos (pi * angle / 180)
+
+        y =
+            distance * sin (pi * angle / 180)
+    in
+        (toString x) ++ " " ++ (toString y)
 
 
 main : Program Never Model Msg
