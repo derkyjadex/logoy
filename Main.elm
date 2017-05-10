@@ -6,6 +6,9 @@ import Dict exposing (Dict)
 import Svg
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
+import Html exposing (div, textarea)
+import Html.Attributes as Html
+import Html.Events exposing (onInput)
 import Debug
 
 
@@ -17,40 +20,37 @@ type Command
 
 
 type alias Model =
-    { program : List Command
+    { text : String
+    , error : String
+    , program : List Command
     , subs : Dict String (List Command)
     }
 
 
-type alias Msg =
-    {}
+type Msg
+    = UpdateText String
 
 
 programText : String
 programText =
     """
-     forward 100
-     right 90
-     forward 50
-     right 105
-     forward 150
-     left 6
+right 90
+forward 90
+right 90
+forward 25
 
-     define star {
-         repeat 5 {
-             right 144
-             forward 30
-         }
-     }
+define star {
+    repeat 5 {
+        right 144
+        forward 30
+    }
+}
 
-     repeat 12 {
-         right 30
-         forward 50
-         call star
-     }
+repeat 12 {
+    right 30
+    forward 50
+    call star
 
-     left 90
-     forward 100
     """
 
 
@@ -63,13 +63,13 @@ type ParseState
     | Error String
 
 
-parseProgram : String -> ( List Command, Dict String (List Command) )
-parseProgram input =
+parseProgram : Model -> Model
+parseProgram model =
     let
         result =
             parseProgram2
                 (Good
-                    { input = String.split "\n" input
+                    { input = String.split "\n" model.text
                     , output = []
                     , subs = Dict.empty
                     }
@@ -77,10 +77,18 @@ parseProgram input =
     in
         case Debug.log "result" result of
             Good state ->
-                ( state.output, state.subs )
+                { model
+                    | error = ""
+                    , program = state.output
+                    , subs = state.subs
+                }
 
             Error error ->
-                ( [], Dict.empty )
+                { model
+                    | error = error
+                    , program = []
+                    , subs = Dict.empty
+                }
 
 
 parseProgram2 : ParseState -> ParseState
@@ -209,32 +217,49 @@ parseProgram2 s =
 
 init : Model
 init =
-    let
-        ( program, subs ) =
-            parseProgram programText
-    in
-        { program = program
-        , subs = subs
+    parseProgram
+        { text = programText
+        , error = ""
+        , program = []
+        , subs = Dict.empty
         }
 
 
 update : Msg -> Model -> Model
 update msg model =
-    model
+    case msg of
+        UpdateText text ->
+            parseProgram { model | text = text }
 
 
 view : Model -> Svg Msg
 view model =
-    svg
-        [ width "500", height "300", viewBox "-250 -150 500 300" ]
-        [ rect [ x "-250", y "-150", width "500", height "300", fill "rgb(90%, 90%, 90%)" ] []
-        , Svg.path
-            [ d ("M0 0 " ++ commandsToPath model.program model.subs)
-            , stroke "black"
-            , strokeWidth "3px"
-            , fill "none"
+    div []
+        [ svg
+            [ width "500", height "300", viewBox "-250 -150 500 300" ]
+            [ rect [ x "-250", y "-150", width "500", height "300", fill "rgb(90%, 90%, 90%)" ] []
+            , Svg.path
+                [ d ("M0 0 " ++ commandsToPath model.program model.subs)
+                , stroke "black"
+                , strokeWidth "3px"
+                , fill "none"
+                ]
+                []
             ]
-            []
+        , div []
+            [ textarea
+                [ Html.style
+                    [ ( "width", "490px" )
+                    , ( "height", "290px" )
+                    , ( "padding", "2px" )
+                    , ( "border", "1px solid black" )
+                    , ( "font-family", "monospace" )
+                    ]
+                , onInput (UpdateText)
+                ]
+                [ text model.text ]
+            ]
+        , div [] [ text model.error ]
         ]
 
 
